@@ -2,6 +2,8 @@
 using System;
 using System.Diagnostics;
 using System.Threading.Tasks;
+using FinalLabTask3.Entities;
+using InMindLab1.Services;
 
 namespace InMindLab1.Middleware
 {
@@ -32,6 +34,22 @@ namespace InMindLab1.Middleware
             
 
             stopwatch.Stop();
+            var publisher = new RabbitMQPublisherService();
+            var logEntry = new LogEntry
+            {
+                RequestId = Guid.NewGuid(),
+                RequestData = new Dictionary<string, object>
+                {
+                    { "Status Code", context.Response.StatusCode },
+                    { "Elapsed TIme", stopwatch.ElapsedMilliseconds },
+                    { "RequestMethod", requestMethod },
+                    { "RequestQueryString", requestQueryString },
+                },
+                RouteURL = requestPath,
+                Timestamp = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified) 
+            };
+            await publisher.PublishLogAsync(logEntry);
+
             Console.WriteLine($"[Response] Status Code: {context.Response.StatusCode}, Elapsed Time: {stopwatch.ElapsedMilliseconds} ms");
             Console.WriteLine(new string('-', 50)); 
         }

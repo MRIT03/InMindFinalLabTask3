@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using FinalLabTask3.Contexts;
 using FinalLabTask3.Entities;
+using Newtonsoft.Json;
 
 [ApiController]
 [Route("api/logs")]
@@ -56,11 +57,17 @@ public class LogsController : ControllerBase
         });
     }
     [HttpPost]
+    [HttpPost]
     public async Task<IActionResult> ReceiveLog([FromBody] LogEntry logEntry)
     {
         if (logEntry == null)
         {
             return BadRequest("Invalid log entry.");
+        }
+
+        if (string.IsNullOrEmpty(logEntry.RequestObject) && logEntry.RequestData != null)
+        {
+            logEntry.RequestObject = JsonConvert.SerializeObject(logEntry.RequestData);
         }
 
         _context.Logs.Add(logEntry);
