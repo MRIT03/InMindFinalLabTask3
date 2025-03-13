@@ -1,0 +1,183 @@
+-- The sql code was executed partly on the console directly, and partly through datagrip
+-- I connected to the container running the Postgres server by using the following command "docker exec -it InMindLab3 bash"
+-- I then connected to the Postgres server using the "psql" command
+-- This allowed me to write SQL on the server immediately, this was because some stuff were slower to do in datagrip
+-- Datagrip was used to simplify some commands
+
+
+-- Connecting to the database
+
+create database LibraryDB;
+\c librarydb
+
+-- Creating the required tables
+
+CREATE TABLE Books (
+    book_id SERIAL PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    author_id INT NOT NULL,
+    isbn VARCHAR(20) UNIQUE,
+    published_year INT
+);
+
+
+
+CREATE TABLE Authors (
+    author_id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    birth_date DATE,
+    country VARCHAR(100)
+);
+
+ALTER TABLE Books
+ADD CONSTRAINT fk_author
+FOREIGN KEY (author_id)
+REFERENCES Authors(author_id)
+ON DELETE CASCADE;
+
+
+
+CREATE TABLE Borrowers (
+    borrower_id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    phone VARCHAR(20) UNIQUE NOT NULL
+);
+
+
+-- Here apparently there is 2 ways to do the "Auto increment" effect on a primary key. Either by SERIAL or by using "GENERATED ALWAYS AS IDENTITY"
+-- The second way is newer and better to use, so I tried it out on this table.
+
+CREATE TABLE loans (
+    loan_id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    borrower_id INT REFERENCES borrowers(borrower_id),
+    book_id INT REFERENCES books(book_id),
+    loan_date TIMESTAMP DEFAULT NOW(),
+    return_date TIMESTAMP DEFAULT NOW() + INTERVAL '2 weeks'
+    CONSTRAINT fk_book FOREIGN KEY (book_id) REFERENCES Books(book_id) ON DELETE CASCADE,
+    CONSTRAINT fk_borrower FOREIGN KEY (borrower_id) REFERENCES Borrowers(borrower_id) ON DELETE CASCADE
+);
+
+
+-- Inserting random records into the database
+
+-- This insert statement was written by me
+
+INSERT INTO authors (author_id, name, birth_date, country) VALUES
+(1, 'Charbel', '1999-01-01', 'Lebanon'),
+(2, 'J.K. Rowling', '1965-07-31', 'United Kingdom'),
+(3, 'Stephen King', '1965-09-21', 'United States of America');
+
+
+-- The insert statements were datagrip generated
+
+
+INSERT INTO public.books (book_id, title, author_id, isbn, published_year) VALUES (1, 'Harry Potter and the philosopher''s stone', 2, '1234', 1997)
+
+INSERT INTO public.books (book_id, title, author_id, isbn, published_year) VALUES (2, 'Harry Potter and the chambers of secret', 2, '5678', 1998)
+
+INSERT INTO public.books (book_id, title, author_id, isbn, published_year) VALUES (3, 'IT', 3, '1480', 1997)
+
+
+INSERT INTO public.borrowers (borrower_id, name, email, phone) VALUES (1, 'Riad Terek', 'mohamadriad.elterek@gmail.com', '+9613417987')
+
+INSERT INTO public.borrowers (borrower_id, name, email, phone) VALUES (2, 'Elie', 'elie@gmail.com', '+96176119128')
+
+INSERT INTO public.borrowers (borrower_id, name, email, phone) VALUES (3, 'Ali', 'ali@gmail.com', '+96170509083')
+
+
+INSERT INTO public.loans (loan_id, book_id, borrower_id, loan_date, return_date, returned) VALUES (1, 1, 1, '2023-07-09', '2023-07-21', true)
+
+INSERT INTO public.loans (loan_id, book_id, borrower_id, loan_date, return_date, returned) VALUES (2, 1, 2, '2023-07-22', '2023-08-07', true)
+
+INSERT INTO public.loans (loan_id, book_id, borrower_id, loan_date, return_date, returned) VALUES (3, 2, 1, '2023-07-22', '2023-08-07', false)
+
+
+-- Writing several queries 
+
+
+-- Retrieving all the books published in 1997
+
+SELECT * FROM books where published_year=1997
+
+-- Retrieving all the overdue loans
+
+ SELECT * FROM loans where returned=false AND (NOW()> return_date);
+
+-- Retrieving all books loaned by user "Elie"
+
+ SELECT books.title FROM books, borrowers AS br, loans AS l WHERE br.borrower_id=l.borrower_id AND books.book_id=l.book_id AND br.name LIKE 'Elie';
+
+-- Return the number of books in the library 
+
+ SELECT COUNT(*) AS total_books FROM books;
+
+
+-- Create a view that shows the most popular books in the library
+
+CREATE VIEW Popular_Books AS
+SELECT b.book_id, b.title, COUNT(l.loan_id) AS total_loans
+FROM books b
+JOIN loans l ON b.book_id = l.book_id
+GROUP BY b.book_id, b.title
+ORDER BY total_loans DESC;
+
+
+-- Creating the stored procedures 
+
+CREATE OR REPLACE FUNCTION borrow_book(
+    p_borrower_id INT,
+    p_book_id INT
+) RETURNS TEXT AS $$
+DECLARE
+    book_exists INT;
+BEGIN
+    -- Check if the book exists
+    SELECT COUNT(*) INTO book_exists FROM books WHERE book_id = p_book_id;
+
+    IF book_exists = 0 THEN
+        RETURN 'Book not found.';
+    END IF;
+
+    -- Insert loan record with return_date set to 2 weeks later
+    INSERT INTO loans (borrower_id, book_id, loan_date, return_date)
+    VALUES (p_borrower_id, p_book_id, NOW(), NOW() + INTERVAL '2 weeks');
+
+    RETURN 'Book successfully borrowed. Return date is in 2 weeks.';
+END;
+$$ LANGUAGE plpgsql;
+
+
+CREATE OR REPLACE FUNCTION return_book(
+    p_borrower_id INT,
+    p_book_id INT
+) RETURNS TEXT AS $$
+DECLARE
+    loan_exists INT;
+BEGIN
+    -- Check if there is an active loan
+    SELECT COUNT(*) INTO loan_exists
+    FROM loans
+    WHERE borrower_id = p_borrower_id
+      AND book_id = p_book_id
+      AND return_date > NOW();  -- Ensuring only unreturned books
+
+    IF loan_exists = 0 THEN
+        RETURN 'No active loan found for this book and borrower.';
+    END IF;
+
+    -- Update loan record to mark the book as returned
+    UPDATE loans
+    SET return_date = NOW(), returned = true
+    WHERE borrower_id = p_borrower_id
+      AND book_id = p_book_id
+      AND return_date > NOW();
+
+    RETURN 'Book successfully returned.';
+END;
+$$ LANGUAGE plpgsql;
+
+
+
+
+
