@@ -1,0 +1,47 @@
+version: '3.8'
+services:
+  postgres:
+    image: postgres:latest
+    environment:
+      POSTGRES_USER: riad
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: riad
+    ports:
+      - "5432:5432"
+    networks:
+      - lognetwork
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    environment:
+      RABBITMQ_ERLANG_COOKIE: "SWQOKODSQALRPCLNMEQG"
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - lognetwork
+
+  publisher:
+    image: publisher-image
+    depends_on:
+      - postgres
+      - rabbitmq
+    networks:
+      - lognetwork
+
+  consumer:
+    image: consumer-image
+    depends_on:
+      - postgres
+      - rabbitmq
+    environment:
+      - RabbitMQ__Host=rabbitmq
+      - RabbitMQ__Port=5672
+      - RabbitMQ__User=guest
+      - RabbitMQ__Password=guest
+    networks:
+      - lognetwork
+
+networks:
+  lognetwork:
+    driver: bridge

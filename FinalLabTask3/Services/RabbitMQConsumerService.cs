@@ -21,7 +21,7 @@ public class RabbitMQConsumerService : BackgroundService
 
     public override async Task StartAsync(CancellationToken cancellationToken)
     {
-        var factory = new ConnectionFactory() { HostName = "localhost" };
+        var factory = new ConnectionFactory() { HostName = "rabbitmq" };
         _connection = await factory.CreateConnectionAsync(); 
         _channel = await _connection.CreateChannelAsync();
         await _channel.QueueDeclareAsync(queue: "log_queue", durable: true, exclusive: false, autoDelete: false, arguments: null);

@@ -3,7 +3,7 @@ using System;
 using System.Text;
 using Newtonsoft.Json;
 using System.Threading.Tasks;
-using FinalLabTask3.Entities;
+using InMindLab3.Models;
 
 public class RabbitMQPublisherService
 {

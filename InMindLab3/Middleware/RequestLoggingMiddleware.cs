@@ -2,8 +2,8 @@
 using System;
 using System.Diagnostics;
 using System.Threading.Tasks;
-using FinalLabTask3.Entities;
 using InMindLab1.Services;
+using InMindLab3.Models;
 
 namespace InMindLab1.Middleware
 {
