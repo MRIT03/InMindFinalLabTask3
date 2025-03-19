@@ -1,7 +1,7 @@
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /app
 
-COPY InMindLab3.csproj ./
+COPY ./InMindLab3.csproj ./
 RUN dotnet restore InMindLab3.csproj
 
 COPY . ./
